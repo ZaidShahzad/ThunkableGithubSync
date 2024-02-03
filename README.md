@@ -50,6 +50,12 @@ pip install PyQt5
 *GITHUB_MAIN_BRANCH_NAME*: This is your github repository main branch name, it's defaulting to "main". If your main branch is somehow "master", change it to "master" in the config.json
 
 ### Run Application
+
+Go into the src directory
+```
+cd src
+```
+
 Run the program application with the following
 ```
 python Program.py
