@@ -27,6 +27,13 @@ Install required dependencies
 ```
 python -m pip install -r requirements.txt
 ```
+If above does not work, manually do this
+```
+pip install PyGithub
+```
+```
+pip install PyQt5
+```
 
 ## Usage
 
