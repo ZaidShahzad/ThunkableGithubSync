@@ -1,2 +1,2 @@
-github
+PyGithub
 PyQt5
