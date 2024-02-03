@@ -243,4 +243,6 @@ class MyApp(QWidget):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     myapp = MyApp()
+    out_dir = Utils.getOutDirPath()
+    os.makedirs(out_dir, exist_ok=True)
     sys.exit(app.exec_())
