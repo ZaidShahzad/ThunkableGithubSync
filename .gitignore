@@ -1,0 +1,7 @@
+# Ignore Python compiled files
+src/__pycache__/
+src/thunkd/__pycache__/
+
+
+# Ignore all files in the "out" directory
+src/out
