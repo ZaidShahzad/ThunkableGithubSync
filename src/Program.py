@@ -28,6 +28,7 @@ from PyQt5.QtCore import Qt
 from thunkd.thunkd import pull, push, getThunkableToken
 import Utils
 from PyQt5.QtWidgets import QGridLayout
+import os
 
 class MyApp(QWidget):
     def __init__(self):
