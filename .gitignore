@@ -5,3 +5,6 @@ src/thunkd/__pycache__/
 
 # Ignore all files in the "out" directory
 src/out
+
+# ignore config
+src/config.json

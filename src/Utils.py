@@ -173,9 +173,15 @@ def createBranchAndCommit(github, commitMessage):
                 content = base64.b64decode(content).decode('utf-8')
                 element = InputGitTreeElement(path=file, mode='100644', type='blob', content=content)
                 commit_files.append(element)
-
+                
         # Create a new tree
-        tree = repo.create_git_tree(tree=commit_files, base_tree=repo.get_git_tree(source_branch_sha))
+        tree = None
+        try:
+            tree = repo.create_git_tree(tree=commit_files, base_tree=repo.get_git_tree(source_branch_sha))
+        except GithubException as e:
+            print(f"Failed to create tree: {e}")
+            print("Creating a new tree without a base tree...")
+            tree = repo.create_git_tree(tree=commit_files)
 
         # Create a new commit
         parent = repo.get_git_commit(source_branch_sha)
@@ -216,7 +222,7 @@ def downloadFilesFromMainBranch(github):
         
         # Iterate over the tree and download files
         for item in tree.tree:
-            if item.type == 'blob':
+            if item.type == 'blob' and (item.path.endswith('.json') or item.path.endswith('.xml')):
                 # Get the file content
                 content = repo.get_git_blob(item.sha).content
                 
