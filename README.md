@@ -15,7 +15,7 @@ python --version
 
 Install Pip
 ```
-pip -m ensurepip
+python -m ensurepip
 ```
 
 Clone the repository
