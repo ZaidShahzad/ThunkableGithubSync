@@ -94,6 +94,28 @@ def getMainAppThunkableSiteURL():
         config_data = json.load(f)
     return config_data['MAIN_APP_THUNKABLE_SITE_URL']
 
+def setProjectNameInMetaDataFile(project_name):
+    """
+    Sets the project name in the metadata file.
+
+    Args:
+        project_name (str): The new project name.
+
+    Returns:
+        None
+    """
+    # Load the JSON file
+    json_file_path = os.path.join(getOutDirPath(), 'meta.json') 
+    with open(json_file_path, 'r') as file:
+        data = json.load(file)
+
+    # Modify the "projectName" field
+    data['data']['project']['projectName'] = project_name
+
+    # Save the modified JSON back to the file
+    with open(json_file_path, 'w') as file:
+        json.dump(data, file, indent=4)
+
 def isConfigDataMissing():
     """
     Checks if the config file is missing or if any of the required fields are missing.
