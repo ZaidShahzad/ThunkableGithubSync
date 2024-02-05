@@ -198,9 +198,11 @@ class MyApp(QWidget):
         # Authenticate with Github
         github = Utils.authenticateWithGithub()
         
-        # Download all files from the dev branch to the "out" directory
+        # Download all files from the dev thunkable app to the "out" directory
         pull(devProjectID, Utils.getOutDirPath(), True, True)
-        
+
+        Utils.setProjectNameInMetaDataFile(Utils.getGithubRepoName() + " - Main App" + " (" + github_commit_message + ")")
+
         # Create a new branch and commit the files
         Utils.createBranchAndCommit(github, github_commit_message)
         self.updateStatusMessage("success", "Successfully Created Branch and Committed Files, Completed!")
