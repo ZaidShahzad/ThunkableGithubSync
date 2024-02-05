@@ -32,6 +32,9 @@ If above does not work, manually do this
 pip install PyGithub
 ```
 ```
+pip install pyqtwebengine
+```
+```
 pip install PyQt5
 ```
 
