@@ -103,7 +103,7 @@ class MyApp(QWidget):
 
         layout.rowStretch(1)  # Add spacing
 
-        self.button_download_and_push = QPushButton('Download and Push', self)
+        self.button_download_and_push = QPushButton('Create Branch With Dev Files', self)
         self.button_download_and_push.setStyleSheet("font-size: 14px; background-color: #c2410c; padding: 10px; color: white; font-weight: bold; margin-top: 30px")  # Increase the font size and set background color to green
         self.button_download_and_push.clicked.connect(self.buttonDownloadAndCommitSubmitClicked)
         layout.addWidget(self.button_download_and_push, 12, 0)
@@ -203,8 +203,8 @@ class MyApp(QWidget):
 
         Utils.setProjectNameInMetaDataFile(Utils.getGithubRepoName() + " - Main App" + " (" + github_commit_message + ")")
 
-        # Create a new branch and commit the files
-        Utils.createBranchAndCommit(github, github_commit_message)
+        # Create a new branch and commit the files (location: root/src)
+        Utils.createBranchAndCommit(github, Utils.getGithubRepoName(), github_commit_message)
         self.updateStatusMessage("success", "Successfully Created Branch and Committed Files, Completed!")
         
     def buttonUpdateMainThunkableAppSubmitClicked(self):
@@ -232,7 +232,7 @@ class MyApp(QWidget):
         github = Utils.authenticateWithGithub()
         
         # Download all files from the main branch to the "out" directory
-        Utils.downloadFilesFromMainBranch(github)
+        Utils.downloadFilesFromMainBranch(github, Utils.getGithubRepoName())
         print("Downloaded files from the main branch.")
         
         # Get main app project ID
@@ -240,6 +240,7 @@ class MyApp(QWidget):
         
         # Push the downloaded files from main branch to the main app in thunkable
         push(mainProjectID, Utils.getOutDirPath(), True)
+        print("Success, pushed main branch files to main thunkable app.")
         self.updateStatusMessage("success", "Successfully Pushed Main Branch Files to Main Thunkable App.")
 
 

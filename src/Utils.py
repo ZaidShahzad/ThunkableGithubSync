@@ -153,12 +153,13 @@ def authenticateWithGithub():
         print("Failed to authenticate with Github:", str(e))
         return None
       
-def createBranchAndCommit(github, commitMessage):
+def createBranchAndCommit(github, repo_name, commitMessage):
     """
-    Creates a new branch and commits all the files in the "out" directory to the branch.
+    Creates a new branch and commits all the files in the "out" directory to the "src" directory in the specified repository.
 
     Args:
         github (Github): An instance of the Github class for authentication.
+        repo_name (str): The name of the repository to operate on.
         commitMessage (str): The commit message for the new commit.
 
     Raises:
@@ -168,11 +169,17 @@ def createBranchAndCommit(github, commitMessage):
         None
     """
     try:
-        # Get the authenticated user
+        # Get the repository by searching for the repository by name
+        repo = None
+        
         user = github.get_user()
-
-        # Get the repository
-        repo = github.get_repo(f"{user.login}/{getGithubRepoName()}")
+        for userRepo in user.get_repos():
+            if(userRepo.name == repo_name):
+                repo = userRepo
+        
+        if repo is None:
+            print(f"Repository '{repo_name}' not found.")
+            return
         
         source_branch = getGithubMainBranchName()
         source_branch_sha = repo.get_branch(source_branch).commit.sha
@@ -181,44 +188,33 @@ def createBranchAndCommit(github, commitMessage):
         unique_id = ''.join(random.choices(string.ascii_lowercase, k=4))
 
         # Create the branch name
-        branch_name = f"{user.login}-devbranch-{unique_id}"
+        branch_name = f"{repo.owner.login}-devbranch-{unique_id}"
 
-        # Commit all the files in the "out" directory
+        # Commit all the files in the "out" directory to the "src" directory in the branch
         files = os.listdir(getOutDirPath())
         commit_files = []
         for file in files:
             file_path = getOutDirPath() / file
-            with open(file_path, "rb") as f:  # Open as binary for reading file content
+            with open(file_path, "rb") as f:
                 content = f.read()
-                # Create a new InputGitTreeElement
                 content = base64.b64encode(content)
                 content = base64.b64decode(content).decode('utf-8')
-                element = InputGitTreeElement(path=file, mode='100644', type='blob', content=content)
+                src_file_path = f"src/{file}"
+                element = InputGitTreeElement(path=src_file_path, mode='100644', type='blob', content=content)
                 commit_files.append(element)
                 
-        # Create a new tree
-        tree = None
-        try:
-            tree = repo.create_git_tree(tree=commit_files, base_tree=repo.get_git_tree(source_branch_sha))
-        except GithubException as e:
-            print(f"Failed to create tree: {e}")
-            print("Creating a new tree without a base tree...")
-            tree = repo.create_git_tree(tree=commit_files)
-
-        # Create a new commit
+        tree = repo.create_git_tree(tree=commit_files, base_tree=repo.get_git_tree(source_branch_sha))
         parent = repo.get_git_commit(source_branch_sha)
         commit = repo.create_git_commit(message=commitMessage, tree=tree, parents=[parent])
-
-        # Update the branch to point to the new commit
         repo.create_git_ref(ref=f'refs/heads/{branch_name}', sha=commit.sha)
 
         print(f"Branch '{branch_name}' updated with new commit successfully.")
     except GithubException as e:
-        print(f"Failed to create branch and submit commit: {e}")
+        print(f"Failed to create branch and submit commit in repository '{repo_name}': {e}")
         
-def downloadFilesFromMainBranch(github):
+def downloadFilesFromMainBranch(github, repo_name):
     """
-    Downloads files from the main branch of a GitHub repository.
+    Downloads files from the 'src' directory in the main branch of a GitHub repository.
 
     Args:
         github (Github): An instance of the `Github` class from the `PyGithub` library.
@@ -230,37 +226,45 @@ def downloadFilesFromMainBranch(github):
         None
     """
     try:
-        # Get the authenticated user
+        # Get the repository by searching for the repository by name
+        repo = None
+        
         user = github.get_user()
-
-        # Get the repository
-        repo = github.get_repo(f"{user.login}/{getGithubRepoName()}")
+        for userRepo in user.get_repos():
+            if(userRepo.name == repo_name):
+                repo = userRepo
+        
+        if repo is None:
+            print(f"Repository '{repo_name}' not found.")
+            return
         
         # Get the branch
         branch = repo.get_branch(getGithubMainBranchName())
         
-        # Get the tree of the branch
-        tree = repo.get_git_tree(branch.commit.sha, recursive=True)
+        # Get the tree of the branch, specifically targeting the 'src' directory
+        tree = repo.get_git_tree(branch.commit.sha, recursive=True).tree
         
-        # Iterate over the tree and download files
-        for item in tree.tree:
-            if item.type == 'blob' and (item.path.endswith('.json') or item.path.endswith('.xml')):
-                # Get the file content
-                content = repo.get_git_blob(item.sha).content
-                
-                # Decode the content from base64
-                decoded_content = base64.b64decode(content).decode('utf-8')
-                
-                # Create the file path
-                file_path = os.path.join(getOutDirPath(), item.path)
-                
-                # Create the directories if they don't exist
-                os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                
-                # Write the content to the file
-                with open(file_path, 'w') as f:
-                    f.write(decoded_content)
+        # Filter for items within the 'src' directory and specific file types (.json, .xml)
+        src_items = [item for item in tree if item.path.startswith('src/') and (item.path.endswith('.json') or item.path.endswith('.xml'))]
         
-        print("Files downloaded successfully.")
+        # Iterate over filtered items and download files
+        for item in src_items:
+            # Get the file content
+            content = repo.get_git_blob(item.sha).content
+                
+            # Decode the content from base64
+            decoded_content = base64.b64decode(content).decode('utf-8')
+                
+            # Adjust the file path to reflect local file structure, if necessary
+            file_path = os.path.join(getOutDirPath(), item.path)
+                
+            # Create the directories if they don't exist
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                
+            # Write the content to the file
+            with open(file_path, 'w') as f:
+                f.write(decoded_content)
+        
+        print("Files from 'src' directory downloaded successfully.")
     except GithubException as e:
-        print(f"Failed to download files from branch: {e}")
+        print(f"Failed to download files from 'src' directory: {e}")
