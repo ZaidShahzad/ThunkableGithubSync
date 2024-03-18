@@ -149,7 +149,7 @@ def authenticateWithGithub():
       
         print("Authenticated with Github as:", user.login)
         return github
-    except Github.GithubException as e:
+    except GithubException as e:
         print("Failed to authenticate with Github:", str(e))
         return None
       
@@ -255,8 +255,9 @@ def downloadFilesFromMainBranch(github, repo_name):
             # Decode the content from base64
             decoded_content = base64.b64decode(content).decode('utf-8')
                 
-            # Adjust the file path to reflect local file structure, if necessary
-            file_path = os.path.join(getOutDirPath(), item.path)
+            # Remove the 'src/' part from the item's path
+            local_path = item.path[4:]
+            file_path = os.path.join(getOutDirPath(), local_path)
                 
             # Create the directories if they don't exist
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
