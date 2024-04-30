@@ -171,21 +171,21 @@ def createBranchAndCommit(github, repo_name, commitMessage):
         None
     """
     try:
-        # Get the repository by searching for the repository by name
+        # Get the repository by searching for it by name
         repo = None
-        
         user = github.get_user()
         for userRepo in user.get_repos():
-            if(userRepo.name == repo_name):
+            if userRepo.name == repo_name:
                 repo = userRepo
-        
+                break
+
         if repo is None:
             print(f"Repository '{repo_name}' not found.")
             return
-        
+
         source_branch = getGithubMainBranchName()
         source_branch_sha = repo.get_branch(source_branch).commit.sha
-        
+
         # Generate a 4-letter unique ID
         unique_id = ''.join(random.choices(string.ascii_lowercase, k=4))
 
@@ -198,13 +198,32 @@ def createBranchAndCommit(github, repo_name, commitMessage):
         for file in files:
             file_path = getOutDirPath() / file
             with open(file_path, "rb") as f:
-                content = f.read()
-                content = base64.b64encode(content)
-                content = base64.b64decode(content).decode('utf-8')
+                content_bytes = f.read()
+
+                # Check MIME type and decide how to handle content
+                mime_type, _ = mimetypes.guess_type(file_path)
+                text_file_types = {'application/json', 'text/xml'}
+
+                if mime_type in text_file_types:
+                    # Detect encoding
+                    detected_encoding = chardet.detect(content_bytes)['encoding']
+                    if detected_encoding:
+                        try:
+                            content = content_bytes.decode(detected_encoding)
+                        except UnicodeDecodeError as e:
+                            print(f"Failed to decode content for {file}: {e}")
+                            continue
+                    else:
+                        continue
+                else:
+                    # Treat as binary content
+                    content = base64.b64encode(content_bytes).decode('utf-8')
+
+                # Create a Git tree element
                 src_file_path = f"src/{file}"
                 element = InputGitTreeElement(path=src_file_path, mode='100644', type='blob', content=content)
                 commit_files.append(element)
-                
+
         tree = repo.create_git_tree(tree=commit_files, base_tree=repo.get_git_tree(source_branch_sha))
         parent = repo.get_git_commit(source_branch_sha)
         commit = repo.create_git_commit(message=commitMessage, tree=tree, parents=[parent])
