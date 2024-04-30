@@ -29,6 +29,8 @@ import string
 import os
 import base64
 from pathlib import Path
+import mimetypes
+import chardet
 
 def getOutDirPath():
     """
@@ -226,46 +228,64 @@ def downloadFilesFromMainBranch(github, repo_name):
         None
     """
     try:
-        # Get the repository by searching for the repository by name
+        # Get the repository by searching for it by name
         repo = None
-        
         user = github.get_user()
         for userRepo in user.get_repos():
-            if(userRepo.name == repo_name):
+            if userRepo.name == repo_name:
                 repo = userRepo
-        
+                break
+
         if repo is None:
             print(f"Repository '{repo_name}' not found.")
             return
         
         # Get the branch
-        branch = repo.get_branch(getGithubMainBranchName())
+        branch_name = 'main'  # Change if necessary
+        branch = repo.get_branch(branch_name)
         
-        # Get the tree of the branch, specifically targeting the 'src' directory
+        # Get the tree of the branch, targeting the 'src' directory
         tree = repo.get_git_tree(branch.commit.sha, recursive=True).tree
-        
-        # Filter for items within the 'src' directory and specific file types (.json, .xml)
         src_items = [item for item in tree if item.path.startswith('src/') and (item.path.endswith('.json') or item.path.endswith('.xml'))]
         
         # Iterate over filtered items and download files
         for item in src_items:
             # Get the file content
             content = repo.get_git_blob(item.sha).content
-                
-            # Decode the content from base64
-            decoded_content = base64.b64decode(content).decode('utf-8')
-                
-            # Remove the 'src/' part from the item's path
+            
+            # Check the MIME type
+            mime_type, _ = mimetypes.guess_type(item.path)
+            text_file_types = {'application/json', 'text/xml'}
+            
+            # Remove 'src/' from the path for local storage
             local_path = item.path[4:]
-            file_path = os.path.join(getOutDirPath(), local_path)
-                
-            # Create the directories if they don't exist
+            file_path = os.path.join(getOutDirPath(), local_path)  # Adjust output_dir to your desired path
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            
+            if mime_type in text_file_types:
+                content_bytes = base64.b64decode(content)
                 
-            # Write the content to the file
-            with open(file_path, 'w') as f:
-                f.write(decoded_content)
-        
+                # Detect encoding
+                detected_encoding = chardet.detect(content_bytes)['encoding']
+
+                if detected_encoding:
+                    try:
+                        # Decode using detected encoding
+                        decoded_content = content_bytes.decode(detected_encoding)
+                        # Write to the file
+                        with open(file_path, 'w') as f:
+                            f.write(decoded_content)
+                    except UnicodeDecodeError as e:
+                        print(f"Failed to decode content for {item.path}: {e}")
+                        continue
+                else:
+                    continue
+            else:
+                # Write binary content directly
+                with open(file_path, 'wb') as f:
+                    f.write(base64.b64decode(content))
+
         print("Files from 'src' directory downloaded successfully.")
+
     except GithubException as e:
         print(f"Failed to download files from 'src' directory: {e}")
