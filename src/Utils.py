@@ -214,7 +214,8 @@ def createBranchAndCommit(github, repo_name, commitMessage):
                             print(f"Failed to decode content for {file}: {e}")
                             continue
                     else:
-                        continue
+                        # Treat as binary content if encoding is undetected
+                        content = content_bytes.decode('utf-8')
                 else:
                     # Treat as binary content
                     content = base64.b64encode(content_bytes).decode('utf-8')
@@ -239,6 +240,7 @@ def downloadFilesFromMainBranch(github, repo_name):
 
     Args:
         github (Github): An instance of the `Github` class from the `PyGithub` library.
+        repo_name (str): The name of the repository.
 
     Raises:
         GithubException: If there is an error while downloading the files.
@@ -246,6 +248,11 @@ def downloadFilesFromMainBranch(github, repo_name):
     Returns:
         None
     """
+    import base64
+    import os
+    import mimetypes
+    import chardet  # Ensure chardet is installed
+
     try:
         # Get the repository by searching for it by name
         repo = None
@@ -258,53 +265,56 @@ def downloadFilesFromMainBranch(github, repo_name):
         if repo is None:
             print(f"Repository '{repo_name}' not found.")
             return
-        
+
         # Get the branch
         branch_name = 'main'  # Change if necessary
         branch = repo.get_branch(branch_name)
-        
+
         # Get the tree of the branch, targeting the 'src' directory
         tree = repo.get_git_tree(branch.commit.sha, recursive=True).tree
         src_items = [item for item in tree if item.path.startswith('src/') and (item.path.endswith('.json') or item.path.endswith('.xml'))]
-        
+
         # Iterate over filtered items and download files
         for item in src_items:
             # Get the file content
             content = repo.get_git_blob(item.sha).content
-            
+            print(f"Downloading file: {item.path}")
+
             # Check the MIME type
             mime_type, _ = mimetypes.guess_type(item.path)
             text_file_types = {'application/json', 'text/xml'}
-            
+
             # Remove 'src/' from the path for local storage
             local_path = item.path[4:]
             file_path = os.path.join(getOutDirPath(), local_path)  # Adjust output_dir to your desired path
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            
+
             if mime_type in text_file_types:
                 content_bytes = base64.b64decode(content)
-                
+
                 # Detect encoding
                 detected_encoding = chardet.detect(content_bytes)['encoding']
+                print(f"Detected encoding: {detected_encoding if detected_encoding else 'None'}")
 
                 if detected_encoding:
-                    try:
-                        # Decode using detected encoding
-                        decoded_content = content_bytes.decode(detected_encoding)
-                        # Write to the file
-                        with open(file_path, 'w') as f:
-                            f.write(decoded_content)
-                    except UnicodeDecodeError as e:
-                        print(f"Failed to decode content for {item.path}: {e}")
-                        continue
+                    # Decode using detected encoding
+                    decoded_content = content_bytes.decode(detected_encoding)
                 else:
-                    continue
+                    # Treat as binary if encoding is undetected
+                    decoded_content = content_bytes
+
+                # Write to the file
+                mode = 'w' if detected_encoding else 'wb'
+                with open(file_path, mode) as f:
+                    f.write(decoded_content)
             else:
                 # Write binary content directly
                 with open(file_path, 'wb') as f:
                     f.write(base64.b64decode(content))
 
         print("Files from 'src' directory downloaded successfully.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
     except GithubException as e:
         print(f"Failed to download files from 'src' directory: {e}")
